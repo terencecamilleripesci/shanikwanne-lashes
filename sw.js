@@ -3,7 +3,7 @@
    Cache-first bites you: she updates the app, the phone keeps serving the old
    files, and the "broken" screen is really a stale one. Bump CACHE every change.
    ========================================================================== */
-const CACHE = 'shanikwanne-v1';
+const CACHE = 'shanikwanne-v2';
 
 const CORE = [
   './',
@@ -13,6 +13,7 @@ const CORE = [
   'js/ui.js',
   'js/lashmap.js',
   'js/photos.js',
+  'js/demo.js',
   'js/app.js',
   'js/screens.js',
   'js/sessions.js',

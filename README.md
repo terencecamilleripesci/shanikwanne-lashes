@@ -45,6 +45,18 @@ The loop it is built around is the one every good lash app has:
   Reels/TikTok. The share card is **blocked unless that client ticked photo consent**.
 - **Aftercare** card that can be texted straight to the client.
 
+
+### Demo client
+
+Settings → **Demo client** loads one fully-populated sample record: health details,
+a valid patch test, signed consent (with photo permission), three sessions with a
+lash map and falling retention across two adhesive batches, an appointment today,
+and a generated before/after photo pair. It is tagged `demo:true`, badged **DEMO**
+in the list, banner-flagged on its own page, and removed in one tap.
+
+The before/after images are drawn on canvas at load time rather than shipped as
+JPEGs — keeps the repo small and avoids putting a real person's face in the app.
+
 ---
 
 ## Privacy / GDPR — read this bit
@@ -122,6 +134,16 @@ sw.js             service worker — NETWORK-FIRST
 - **Photos go in IndexedDB, not localStorage** — the ~5MB quota dies instantly otherwise.
 - Photos are downscaled to 1600px / JPEG 0.82 on capture.
 
+- **IndexedDB stalls under `--virtual-time-budget`.** Headless tests that touch
+  photos must run in real time (drive the browser without virtual time and report
+  results via a server-log ping, or the promises never settle). A raw `indexedDB.open`
+  fires `upgradeneeded` and then never fires `onsuccess` — it is not an app bug.
+- **A test that ends early must fail, not pass.** A timeout handler that sets
+  `TIMEOUT` and then calls the finisher will have the verdict overwritten to
+  `ALLPASS`. Guard it, or a stalled run reads green with two cases.
+- **Setting `location.hash` to its current value fires no `hashchange`,** so the
+  screen does not re-render. Navigate away first when asserting on the boot route.
+
 ### Testing
 
 Serve and open on the tailnet:
@@ -133,7 +155,7 @@ cd shanikwanne-lashes && python3 -m http.server 8231
 
 The interaction suite was a temporary `_t.html` harness (iframe + real dispatched
 events, asserting into `document.title`), deleted after use per the workspace rules.
-Last run: **74 cases, 0 failed**, covering the patch-test gate, consent versioning,
+Last run: **44 cases, 0 failed** (demo + routing + erasure suite; an earlier 74-case store/logic suite also passed), covering the patch-test gate, consent versioning,
 session pre-fill, overdue maths, retention grouping, the map builder, routing and
 erasure.
 

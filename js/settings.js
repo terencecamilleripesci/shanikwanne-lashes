@@ -114,6 +114,20 @@
       '<button class="btn btn-primary btn-block btn-sm" type="submit">Save security</button>' +
       '</form>');
 
+    /* ---- demo data ---- */
+    b += section('Demo client', 'info',
+      Demo.isLoaded()
+        ? '<p class="help" style="margin-bottom:12px">A sample record is loaded so you can try every screen — ' +
+          'lash map, patch test, consent, retention chart and before/after photos. It is marked ' +
+          '<strong>DEMO</strong> everywhere and is not counted as a real client.</p>' +
+          '<button class="btn btn-ghost btn-block btn-sm" data-action="remove-demo" type="button">' +
+          UI.icon('trash') + 'Remove the demo client</button>'
+        : '<p class="help" style="margin-bottom:12px">Load a sample client with sessions, a lash map, ' +
+          'a signed consent form and before/after photos, so you can see how everything works before ' +
+          'putting real clients in.</p>' +
+          '<button class="btn btn-primary btn-block btn-sm" data-action="load-demo" type="button">' +
+          UI.icon('sparkle') + 'Load a demo client</button>');
+
     /* ---- backup ---- */
     b += section('Backup', 'download',
       '<div class="alert alert-warn" style="margin-bottom:12px">' + UI.icon('alert') +

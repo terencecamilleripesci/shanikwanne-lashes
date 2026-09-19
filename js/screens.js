@@ -19,7 +19,14 @@
     var TABS = ['overview', 'health', 'sessions', 'photos'];
     if (TABS.indexOf(tab) < 0) tab = 'overview';
 
-    var b = '<div class="seg" role="tablist" style="margin-bottom:20px">' +
+    var b = '';
+    if (c.demo) {
+      b += '<div class="alert alert-ok" style="margin-bottom:16px;border-color:var(--accent);color:var(--accent);background:rgba(196,169,245,.12)">' +
+        UI.icon('info') + '<div><strong>This is the demo client</strong>' +
+        'A sample record so you can try every screen. Remove it in Settings when you are done.</div></div>';
+    }
+
+    b += '<div class="seg" role="tablist" style="margin-bottom:20px">' +
       TABS.map(function (t) {
         return '<button role="tab" aria-selected="' + (t === tab) + '" data-action="tab" data-id="' + t + '" type="button">' +
           t.charAt(0).toUpperCase() + t.slice(1) + '</button>';
@@ -35,9 +42,20 @@
     App._client = c;
     App._tab = tab;
 
+    /* A human summary, not a raw date string. Only surface the patch test here
+       when it's a problem — the detail lives on the Health tab. */
+    var nRec = Store.records(c.id).length;
+    var pSt = Store.patchTestStatus(c);
+    var sub;
+    if (pSt.state === 'react') sub = 'Reaction on record';
+    else if (pSt.state === 'expired' || pSt.state === 'none') sub = pSt.label;
+    else if (!nRec) sub = 'No sessions yet';
+    else sub = nRec + (nRec === 1 ? ' session' : ' sessions') +
+              ' · last ' + UI.date(Store.lastRecord(c.id).date);
+
     return {
       title: UI.esc(c.name),
-      sub: UI.patchBadge(Store.patchTestStatus(c)).replace(/<[^>]+>/g, '').trim(),
+      sub: UI.esc(sub),
       back: true,
       actions:
         (c.phone ? '<a class="icon-btn" href="tel:' + UI.esc(c.phone) + '" aria-label="Call ' + UI.esc(c.name) + '">' + UI.icon('phone') + '</a>' : '') +

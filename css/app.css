@@ -153,8 +153,10 @@ a{color:var(--primary)}
 
 /* ---------- cards ---------- */
 .card{
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--r-md); padding:var(--s4); box-shadow:var(--sh-1);
+  /* a touch of vertical lift stops every surface reading as the same flat slab */
+  background:linear-gradient(176deg, var(--surface-2) 0%, var(--surface) 52%);
+  border:1px solid var(--border);
+  border-radius:var(--r-md); padding:var(--s4); box-shadow:var(--sh-2);
 }
 .card-2{background:var(--surface-2)}
 .card-link{
@@ -330,9 +332,38 @@ legend{font-size:var(--t-sm); font-weight:700; color:var(--primary); padding:0 v
 /* ---------- stats ---------- */
 /* 4 stats in a 3-wide grid leaves a ragged orphan — 2x2 on a phone. */
 .stats{display:grid; grid-template-columns:repeat(2,1fr); gap:var(--s2)}
-.stat{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:var(--s3); text-align:center}
+.stat{
+  background:linear-gradient(176deg, var(--surface-2), var(--surface) 62%);
+  border:1px solid var(--border); border-radius:var(--r-md);
+  padding:var(--s3); text-align:center;
+}
 .stat .v{font:700 var(--t-xl)/1.1 var(--font-display); color:var(--primary); font-variant-numeric:tabular-nums}
 .stat .k{font-size:var(--t-xs); color:var(--muted); margin-top:4px; font-weight:600}
+.stat.accent .v{color:var(--accent)}
+
+/* ---------- hero: gives the Today screen a focal point ---------- */
+.hero{
+  position:relative; overflow:hidden;
+  border-radius:var(--r-lg); padding:var(--s5) var(--s4); margin-bottom:var(--s5);
+  background:
+    radial-gradient(120% 140% at 8% 0%, rgba(240,165,200,.20), transparent 58%),
+    radial-gradient(110% 130% at 100% 8%, rgba(196,169,245,.16), transparent 55%),
+    linear-gradient(170deg, var(--surface-3), var(--surface) 70%);
+  border:1px solid var(--border-strong);
+  box-shadow:var(--sh-3);
+}
+.hero .who{font:600 var(--t-2xl)/1.15 var(--font-display); margin:var(--s2) 0 2px; letter-spacing:-.015em}
+.hero .what{font-size:var(--t-sm); color:var(--ink-2)}
+.hero .when{
+  display:inline-flex; align-items:baseline; gap:6px; margin-top:var(--s3);
+  font:700 var(--t-xl)/1 var(--font-num); color:var(--primary);
+}
+.hero .when small{font:600 var(--t-sm) var(--font-body); color:var(--muted)}
+.hero-actions{display:flex; gap:var(--s2); margin-top:var(--s4); flex-wrap:wrap}
+.hero-actions .btn{flex:1 1 auto}
+
+/* the demo record must never be mistakable for a real client */
+.badge-demo{background:var(--accent); color:var(--on-accent); font-weight:800; letter-spacing:.06em}
 
 /* ---------- empty / skeleton ---------- */
 .empty{text-align:center; padding:var(--s7) var(--s4); color:var(--muted)}
@@ -449,10 +480,13 @@ legend{font-size:var(--t-sm); font-weight:700; color:var(--primary); padding:0 v
 }
 
 /* ---------- retention bars ---------- */
-.bars{display:flex; align-items:flex-end; gap:6px; height:110px; padding-top:var(--s2)}
-.bars .b{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; height:100%}
+.bars{display:flex; align-items:flex-end; justify-content:flex-start; gap:10px; height:110px; padding-top:var(--s2)}
+.bars .b{
+  flex:1 1 0; max-width:56px;   /* two fills shouldn't stretch into slabs */
+  display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; height:100%;
+}
 .bars .b i{
-  width:100%; border-radius:4px 4px 0 0; background:var(--primary); display:block;
+  width:100%; border-radius:5px 5px 0 0; background:var(--primary); display:block;
   min-height:3px; transition:height var(--dur-slow) var(--ease-out);
 }
 .bars .b.low i{background:var(--danger)}

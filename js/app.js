@@ -187,7 +187,46 @@
 
     var b = '';
 
-    /* --- alerts first: these are the things that ruin a day --- */
+    /* --- hero: the one thing she needs to know right now --- */
+    var now = new Date();
+    var nowMin = now.getHours() * 60 + now.getMinutes();
+    var next = d.appts.filter(function (a) {
+      var p = String(a.time || '0:0').split(':');
+      return (Number(p[0]) * 60 + Number(p[1] || 0)) >= nowMin - 30;
+    })[0] || d.appts[0];
+
+    if (next) {
+      var nc = Store.client(next.clientId);
+      b += '<div class="hero">' +
+        '<span class="eyebrow" style="color:var(--primary)">' +
+          (d.appts.indexOf(next) === 0 && nowMin < 720 ? 'First in today' : 'Next in') + '</span>' +
+        '<div class="row" style="gap:12px;align-items:center;margin-top:8px">' +
+          (nc ? UI.avatar(nc.name) : '') +
+          '<span class="grow" style="min-width:0">' +
+            '<span class="who truncate" style="display:block">' + UI.esc(nc ? nc.name : 'Unknown') + '</span>' +
+            '<span class="what truncate" style="display:block">' + UI.esc(next.service || 'Appointment') + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<span class="when">' + UI.time(next.time) +
+          '<small>' + (next.durationMin || 0) + ' min' +
+          (next.price ? ' · ' + UI.money(next.price) : '') + '</small></span>' +
+        '<div class="hero-actions">' +
+          (nc ? '<a class="btn btn-primary" href="#/client/' + nc.id + '">' + UI.icon('sparkle') + 'Open client</a>' : '') +
+          (nc && nc.phone ? '<a class="btn btn-ghost" href="tel:' + UI.esc(nc.phone) + '" aria-label="Call ' + UI.esc(nc.name) + '">' + UI.icon('phone') + 'Call</a>' : '') +
+        '</div>' +
+      '</div>';
+    } else {
+      b += '<div class="hero">' +
+        '<span class="eyebrow" style="color:var(--primary)">' + UI.date(Store.todayISO()) + '</span>' +
+        '<div class="who">Nothing booked today</div>' +
+        '<div class="what">A good day to chase the rebooks below.</div>' +
+        '<div class="hero-actions">' +
+          '<a class="btn btn-primary" href="#/calendar">' + UI.icon('plus') + 'Add an appointment</a>' +
+        '</div>' +
+      '</div>';
+    }
+
+    /* --- alerts: these are the things that ruin a day --- */
     if (d.patch.length) {
       b += '<div class="stack" style="margin-bottom:24px">';
       d.patch.forEach(function (p) {
@@ -205,7 +244,7 @@
       '<div class="stat"><div class="v num">' + s.todayCount + '</div><div class="k">Today</div></div>' +
       '<div class="stat"><div class="v num">' + s.clients + '</div><div class="k">Clients</div></div>' +
       '<div class="stat"><div class="v num">' + s.monthSessions + '</div><div class="k">This month</div></div>' +
-      '<div class="stat"><div class="v num">' + UI.money(s.monthRevenue) + '</div><div class="k">Revenue</div></div>' +
+      '<div class="stat accent"><div class="v num">' + UI.money(s.monthRevenue) + '</div><div class="k">Revenue</div></div>' +
       '</div>';
 
     /* --- today's appointments --- */
@@ -246,10 +285,11 @@
     var c = Store.client(a.clientId);
     var name = c ? c.name : 'Unknown client';
     return '<a class="item" href="#/client/' + (c ? c.id : '') + '">' +
-      '<span style="flex:0 0 66px;text-align:center;white-space:nowrap">' +
+      '<span style="flex:0 0 58px;text-align:center;white-space:nowrap">' +
         '<span class="num" style="font-weight:700;color:var(--primary);font-size:.9375rem">' + UI.time(a.time) + '</span>' +
         '<span style="display:block;font-size:.6875rem;color:var(--muted)">' + (a.durationMin || 0) + 'm</span>' +
       '</span>' +
+      (c ? UI.avatar(c.name) : '') +
       '<span class="grow"><span class="title truncate">' + UI.esc(name) + '</span>' +
       '<span class="meta truncate">' + UI.esc(a.service || 'Appointment') +
         (a.price ? ' · ' + UI.money(a.price) : '') + '</span></span>' +
@@ -277,7 +317,11 @@
             icon: 'users', title: 'No clients yet',
             message: 'Add your first client and the app will start tracking her maps, patch tests and fills.',
             action: { act: 'new-client', label: 'Add a client' }
-          });
+          }) +
+          (Demo.isLoaded() ? '' :
+            '<p class="help" style="text-align:center;margin-top:-8px">or ' +
+            '<button class="btn btn-quiet btn-sm" data-action="load-demo" type="button" ' +
+            'style="text-decoration:underline">load a demo client to look around</button></p>');
     } else {
       b += '<div class="list">' + list.map(function (c) {
         var st = Store.patchTestStatus(c);
@@ -291,6 +335,7 @@
           UI.avatar(c.name) +
           '<span class="grow"><span class="title truncate">' + UI.esc(c.name) + '</span>' +
           '<span class="meta truncate">' + UI.esc(meta) + '</span></span>' +
+          (c.demo ? UI.badge('demo', 'DEMO') : '') +
           (warn ? UI.badge('danger', st.state === 'react' ? 'Reaction' : 'Patch test', 'alert') : '') +
           '<span class="chev">' + UI.icon('chev-right') + '</span></a>';
       }).join('') + '</div>';
@@ -388,6 +433,36 @@
     var id = act.dataset.id;
 
     if (name === 'new-client') { App.clientSheet(null); return; }
+
+    if (name === 'load-demo') {
+      var close = UI.toast('Building the demo record…');
+      Demo.load().then(function () {
+        close();
+        UI.toast('Demo client added — remove it any time in Settings', 'ok');
+        App.render();
+      }).catch(function (err) {
+        close();
+        UI.toast('Could not build the demo: ' + (err.message || ''), 'err');
+      });
+      return;
+    }
+
+    if (name === 'remove-demo') {
+      UI.confirm({
+        title: 'Remove the demo client?',
+        message: 'The sample record, its sessions and its photos will be deleted. Your real clients are untouched.',
+        okLabel: 'Remove demo', danger: true,
+        onOk: function () {
+          Demo.remove().then(function (n) {
+            UI.toast(n ? 'Demo removed' : 'Nothing to remove', 'ok');
+            App.go('#/clients');
+            App.render();
+          });
+        }
+      });
+      return;
+    }
+
     if (App.actions && App.actions[name]) { App.actions[name](id, act, e); }
   });
 
