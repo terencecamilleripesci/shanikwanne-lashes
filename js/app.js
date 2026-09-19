@@ -300,18 +300,70 @@
   /* =======================================================================
      Screen: Clients
      ======================================================================= */
+  function clientRow(c) {
+    var st = Store.patchTestStatus(c);
+    var due = Store.nextDue(c.id);
+    var over = due ? Store.daysBetween(due, Store.todayISO()) : null;
+    var meta = due
+      ? (over > 0 ? over + 'd past due' : over === 0 ? 'Due today' : 'Next fill ' + UI.date(due))
+      : 'No sessions yet';
+    var warn = (st.state === 'expired' || st.state === 'none' || st.state === 'react');
+    return '<a class="item" href="#/client/' + c.id + '">' +
+      UI.avatar(c.name) +
+      '<span class="grow"><span class="title truncate">' + UI.esc(c.name) + '</span>' +
+      '<span class="meta truncate">' + UI.esc(meta) + '</span></span>' +
+      (c.demo ? UI.badge('demo', 'DEMO') : '') +
+      (warn ? UI.badge('danger', st.state === 'react' ? 'Reaction' : 'Patch test', 'alert') : '') +
+      '<span class="chev">' + UI.icon('chev-right') + '</span></a>';
+  }
+
+  /** First letter used for indexing. Anything not A–Z groups under '#'. */
+  function alphaKey(name) {
+    var ch = String(name || '').trim().charAt(0).toUpperCase();
+    return /[A-Z]/.test(ch) ? ch : '#';
+  }
+  App.alphaKey = alphaKey;
+
   App.routes.clients = function () {
     var q = App._clientQuery || '';
-    var list = Store.clients({ q: q });
+    var letter = App._clientLetter || '';
+    var all = Store.clients({ q: q });
+
+    // which letters actually have someone behind them
+    var present = {};
+    all.forEach(function (c) { present[alphaKey(c.name)] = true; });
+
+    var list = letter
+      ? all.filter(function (c) { return alphaKey(c.name) === letter; })
+      : all;
 
     var b =
-      '<div class="field" style="margin-bottom:16px">' +
+      '<div class="field" style="margin-bottom:12px">' +
         '<label for="cq" style="position:absolute;left:-9999px">Search clients</label>' +
         '<input id="cq" type="search" placeholder="Search name, phone or Instagram" value="' + UI.esc(q) + '" autocomplete="off">' +
       '</div>';
 
+    /* --- A–Z quick index --- */
+    var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    if (present['#']) LETTERS.push('#');
+    b += '<div class="alpha" role="group" aria-label="Jump to a letter">' +
+      '<button type="button" class="alpha-key" data-action="alpha" data-id="" ' +
+        'aria-pressed="' + (letter === '') + '">All</button>' +
+      LETTERS.map(function (L) {
+        var has = !!present[L];
+        return '<button type="button" class="alpha-key" data-action="alpha" data-id="' + L + '"' +
+          (has ? '' : ' disabled aria-disabled="true"') +
+          ' aria-pressed="' + (letter === L) + '"' +
+          ' aria-label="' + (L === '#' ? 'Other' : L) + (has ? '' : ', no clients') + '">' +
+          L + '</button>';
+      }).join('') +
+      '</div>';
+
     if (!list.length) {
-      b += q
+      b += letter
+        ? UI.empty({ icon: 'users', title: 'Nobody under ' + (letter === '#' ? 'Other' : letter),
+                     message: 'Tap All to see everyone again.' })
+        : q
         ? UI.empty({ icon: 'search', title: 'No matches', message: 'Nothing found for "' + q + '".' })
         : UI.empty({
             icon: 'users', title: 'No clients yet',
@@ -323,33 +375,40 @@
             '<button class="btn btn-quiet btn-sm" data-action="load-demo" type="button" ' +
             'style="text-decoration:underline">load a demo client to look around</button></p>');
     } else {
-      b += '<div class="list">' + list.map(function (c) {
-        var st = Store.patchTestStatus(c);
-        var due = Store.nextDue(c.id);
-        var over = due ? Store.daysBetween(due, Store.todayISO()) : null;
-        var meta = due
-          ? (over > 0 ? over + 'd past due' : over === 0 ? 'Due today' : 'Next fill ' + UI.date(due))
-          : 'No sessions yet';
-        var warn = (st.state === 'expired' || st.state === 'none' || st.state === 'react');
-        return '<a class="item" href="#/client/' + c.id + '">' +
-          UI.avatar(c.name) +
-          '<span class="grow"><span class="title truncate">' + UI.esc(c.name) + '</span>' +
-          '<span class="meta truncate">' + UI.esc(meta) + '</span></span>' +
-          (c.demo ? UI.badge('demo', 'DEMO') : '') +
-          (warn ? UI.badge('danger', st.state === 'react' ? 'Reaction' : 'Patch test', 'alert') : '') +
-          '<span class="chev">' + UI.icon('chev-right') + '</span></a>';
-      }).join('') + '</div>';
+      // group under letter headings, the way a contacts list reads
+      var groups = [];
+      var seen = {};
+      list.forEach(function (c) {
+        var k = alphaKey(c.name);
+        if (!seen[k]) { seen[k] = []; groups.push(k); }
+        seen[k].push(c);
+      });
+
+      // names starting with a digit or symbol belong at the BOTTOM, not above A
+      groups.sort(function (a, b2) {
+        if (a === '#') return 1;
+        if (b2 === '#') return -1;
+        return a.localeCompare(b2);
+      });
+
+      b += groups.map(function (k) {
+        return '<div class="alpha-head" id="grp-' + k + '">' + (k === '#' ? 'Other' : k) + '</div>' +
+          '<div class="list">' + seen[k].map(clientRow).join('') + '</div>';
+      }).join('');
     }
 
     return {
       title: 'Clients',
-      sub: list.length + (q ? ' match' + (list.length === 1 ? '' : 'es') : ' total'),
+      sub: list.length + (q || letter ? ' shown' : ' total') +
+           (letter ? ' · ' + (letter === '#' ? 'Other' : letter) : ''),
       body: b + '<button class="fab" data-action="new-client" type="button" aria-label="Add client">' + UI.icon('plus') + '</button>',
       onMount: function (screen) {
         var input = screen.querySelector('#cq');
         if (!input) return;
         input.addEventListener('input', UI.debounce(function () {
           App._clientQuery = input.value;
+          // a letter filter on top of a search hides matches for no clear reason
+          if (input.value) App._clientLetter = '';
           var pos = input.selectionStart;
           App.render();
           var again = document.getElementById('cq');
@@ -433,6 +492,13 @@
     var id = act.dataset.id;
 
     if (name === 'new-client') { App.clientSheet(null); return; }
+
+    if (name === 'alpha') {
+      // tapping the active letter again clears it
+      App._clientLetter = (App._clientLetter === id) ? '' : id;
+      App.render();
+      return;
+    }
 
     if (name === 'load-demo') {
       var close = UI.toast('Building the demo record…');
