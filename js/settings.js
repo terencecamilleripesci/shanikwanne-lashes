@@ -36,6 +36,17 @@
       '<button class="btn btn-primary btn-block btn-sm" type="submit">Save studio details</button>' +
       '</form>');
 
+    /* ---- appearance ---- */
+    var theme = s.theme || 'light';
+    b += section('Appearance', 'eye',
+      '<div class="seg" role="tablist" style="margin-bottom:10px">' +
+        [['light', 'Light'], ['dark', 'Dark'], ['auto', 'Match iPad']].map(function (t) {
+          return '<button role="tab" type="button" data-action="set-theme" data-id="' + t[0] + '" ' +
+            'aria-selected="' + (theme === t[0]) + '">' + t[1] + '</button>';
+        }).join('') +
+      '</div>' +
+      '<p class="help">“Match iPad” follows the system Light/Dark setting automatically.</p>');
+
     /* ---- notifications ---- */
     var notifState = perm === 'unsupported'
       ? { kind: 'neutral', text: 'Not supported on this device' }
@@ -242,6 +253,13 @@
     });
 
   }
+
+  /* ----------------------------------------------------------- appearance */
+  App.actions['set-theme'] = function (id) {
+    UI.applyTheme(id);
+    Store.saveSettings({ theme: id });
+    App.render();
+  };
 
   /* -------------------------------------------------------------- sign-in */
   App.actions['auth-change'] = function () { App.Lock.setupSheet(); };

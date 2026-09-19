@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Shanikwanne Lashes — Studio</title>
 <meta name="description" content="Client records, lash maps, patch tests and before/after photos for the studio. Works offline.">
-<meta name="theme-color" content="#140F16">
-<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#FBF6F9" id="meta-theme-color">
+<meta name="color-scheme" content="light dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,6 +19,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/app.css">
+
+<script>
+/* Applied before first paint so the app never flashes the wrong theme.
+   Runs before store.js exists, so it reads localStorage directly. */
+(function () {
+  var theme = 'light';
+  try {
+    var raw = localStorage.getItem('shanikwanne.v1');
+    if (raw) {
+      var t = (JSON.parse(raw).settings || {}).theme;
+      if (t === 'light' || t === 'dark' || t === 'auto') theme = t;
+    }
+  } catch (e) {}
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 </head>
 <body>
 

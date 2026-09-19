@@ -63,6 +63,7 @@
   };
 
   var DEFAULT_SETTINGS = {
+    theme: 'light',            // 'light' | 'dark' | 'auto'
     studioName: 'Shanikwanne Lashes',
     artistName: '',
     phone: '',

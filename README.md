@@ -2,7 +2,7 @@
 
 A client-management app for a lash technician. Built as an **offline PWA** for
 **iPhone and iPad**. No backend, no accounts, no subscription — everything lives
-on the device.
+on the device. **Light theme by default**, with dark and "match iPad" available.
 
 ---
 
@@ -22,7 +22,7 @@ The loop it is built around is the one every good lash app has:
 | **Clients** | Search by name, phone or Instagram; each row shows next-fill status and flags a bad patch test |
 | **Client** | Four tabs — Overview, Health, Sessions, Photos |
 | **Calendar** | 14-day strip, day list, booking with clash detection |
-| **Settings** | Studio details, reminders, treatment rules, editable dropdown lists, backup, PIN, erase |
+| **Settings** | Appearance (light/dark/auto), studio details, reminders, treatment rules, editable lists, backup, passcode, erase |
 
 ### The features that matter
 
@@ -145,6 +145,16 @@ sw.js             service worker — NETWORK-FIRST
 - **`.truncate` does nothing on an inline element.** `overflow` doesn't apply to
   non-replaced inline boxes, so `.item .title/.meta` must stay `display:block` or the
   rows push the page wider than the phone.
+- **Light and dark are a designed PAIR, not inverted.** The pale rose that reads at
+  8.9:1 on near-black is ~1.6:1 on white. Light mode uses a deep rose (#A8336A) for
+  anything carrying text, and keeps pale rose only as a fill behind dark text. Every
+  pair is contrast-checked by the test suite, not by eye.
+- **Canvas can't read CSS variables.** The sketch template, the signature pad and any
+  flattened export must call `UI.token()` / `UI.isDark()`. The share card is the one
+  deliberate exception — it stays dark in both themes because it's a social asset.
+- **The signature export flips only in dark mode.** Strokes are drawn in `--ink`; in
+  dark that's near-white, so `difference` against a white page inverts it to black. In
+  light the strokes are already dark and that same trick would erase them.
 - **`color-mix` needs Safari 16.2+.** The sticky bars declare a solid background
   first and the `color-mix` second, so an older iPad still gets an opaque bar.
 - **Service worker is network-first.** Cache-first serves stale files after an update

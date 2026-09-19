@@ -518,7 +518,7 @@
           ctx.lineWidth = 2.2;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';
-          ctx.strokeStyle = '#F6EDF4';
+          ctx.strokeStyle = UI.token('ink') || '#2B1F29';
         }
         setTimeout(size, 40);
 
@@ -561,14 +561,18 @@
             canvas.scrollIntoView({ block: 'center', behavior: 'smooth' });
             return;
           }
-          // flatten onto white so it prints and exports readably
+          /* Flatten onto white so it prints and exports readably.
+             In dark mode the strokes are near-white, so 'difference' against a
+             white page inverts them to near-black. In light mode they are
+             already dark and that same trick would erase them — draw normally. */
           var out = document.createElement('canvas');
           out.width = canvas.width; out.height = canvas.height;
           var octx = out.getContext('2d');
           octx.fillStyle = '#ffffff';
           octx.fillRect(0, 0, out.width, out.height);
-          octx.globalCompositeOperation = 'difference';
+          if (UI.isDark()) octx.globalCompositeOperation = 'difference';
           octx.drawImage(canvas, 0, 0);
+          octx.globalCompositeOperation = 'source-over';
 
           Store.addConsent(c.id, {
             date: Store.todayISO(),

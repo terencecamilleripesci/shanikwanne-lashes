@@ -15,12 +15,23 @@
 
   var Sketch = {};
 
-  var COLORS = [
-    { id: 'rose', v: '#F0A5C8', label: 'Rose' },
-    { id: 'lav', v: '#C4A9F5', label: 'Lavender' },
-    { id: 'white', v: '#F6EDF4', label: 'White' },
-    { id: 'gold', v: '#F5C77E', label: 'Gold' }
-  ];
+  /* Ink has to suit the paper: pale rose on a white template is unreadable,
+     deep rose on a near-black one is equally bad. Pick per theme. */
+  function palette() {
+    return UI.isDark()
+      ? [
+          { id: 'rose', v: '#F0A5C8', label: 'Rose' },
+          { id: 'lav', v: '#C4A9F5', label: 'Lavender' },
+          { id: 'ink', v: '#F6EDF4', label: 'White' },
+          { id: 'gold', v: '#F5C77E', label: 'Gold' }
+        ]
+      : [
+          { id: 'rose', v: '#A8336A', label: 'Rose' },
+          { id: 'lav', v: '#6B45A6', label: 'Lavender' },
+          { id: 'ink', v: '#2B1F29', label: 'Black' },
+          { id: 'gold', v: '#8A5A07', label: 'Gold' }
+        ];
+  }
   var WIDTHS = [
     { id: 'fine', v: 2, label: 'Fine' },
     { id: 'med', v: 4, label: 'Medium' },
@@ -33,8 +44,14 @@
     ctx.save();
     ctx.clearRect(0, 0, W, H);
 
-    // paper
-    ctx.fillStyle = '#1E1722';
+    // theme-aware paper and guide ink (canvas can't read CSS variables)
+    var paper = UI.token('surface') || (UI.isDark() ? '#1E1722' : '#FFFFFF');
+    var guide = UI.token('ink-2') || (UI.isDark() ? '#C9B8C6' : '#554653');
+    var label = UI.token('muted') || (UI.isDark() ? '#A2919F' : '#6E5D6B');
+    var brand = UI.token('primary') || (UI.isDark() ? '#F0A5C8' : '#A8336A');
+    var accent = UI.token('accent') || (UI.isDark() ? '#C4A9F5' : '#6B45A6');
+
+    ctx.fillStyle = paper;
     ctx.fillRect(0, 0, W, H);
 
     var eyeW = W * 0.82;
@@ -45,7 +62,8 @@
       var cy = H * yFrac;
 
       // lid
-      ctx.strokeStyle = 'rgba(201,184,198,.38)';
+      ctx.strokeStyle = guide;
+      ctx.globalAlpha = 0.42;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(cx, cy, eyeW / 2, eyeH / 2, 0, 0, Math.PI * 2);
@@ -54,12 +72,13 @@
       // iris hint
       ctx.beginPath();
       ctx.arc(cx, cy, eyeH * 0.30, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(201,184,198,.22)';
+      ctx.globalAlpha = 0.24;
       ctx.stroke();
 
       // seven zone guides along the upper lid
       ctx.setLineDash([3, 5]);
-      ctx.strokeStyle = 'rgba(240,165,200,.26)';
+      ctx.strokeStyle = brand;
+      ctx.globalAlpha = 0.30;
       ctx.lineWidth = 1;
       for (var z = 0; z < 7; z++) {
         var t = z / 6;
@@ -74,7 +93,8 @@
       ctx.setLineDash([]);
 
       // zone numbers + side label
-      ctx.fillStyle = 'rgba(162,145,159,.85)';
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = label;
       ctx.font = '600 11px Manrope, system-ui, sans-serif';
       ctx.textAlign = 'center';
       for (var z2 = 0; z2 < 7; z2++) {
@@ -86,16 +106,19 @@
       }
       // labels sit below the lid so they never collide with the zone numbers
       ctx.textAlign = 'left';
-      ctx.fillStyle = 'rgba(196,169,245,.9)';
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = accent;
       ctx.font = '700 12px Manrope, system-ui, sans-serif';
       ctx.fillText(idx === 0 ? 'LEFT EYE' : 'RIGHT EYE', W * 0.03, cy + eyeH * 0.72 + 14);
 
-      ctx.fillStyle = 'rgba(162,145,159,.6)';
+      ctx.globalAlpha = 0.65;
+      ctx.fillStyle = label;
       ctx.font = '600 10px Manrope, system-ui, sans-serif';
       ctx.fillText('inner', W * 0.03, cy + eyeH * 0.72 + 30);
       ctx.textAlign = 'right';
       ctx.fillText('outer', W * 0.97, cy + eyeH * 0.72 + 30);
       ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
     });
 
     ctx.restore();
@@ -108,6 +131,7 @@
    * Full-height sheet with the template, a toolbar and undo.
    */
   Sketch.open = function (opts) {
+    var COLORS = palette();
     var colour = COLORS[0].v;
     var width = WIDTHS[1].v;
     var erasing = false;
@@ -340,7 +364,7 @@
           var out = document.createElement('canvas');
           out.width = canvas.width; out.height = canvas.height;
           var octx = out.getContext('2d');
-          octx.fillStyle = '#1E1722';
+          octx.fillStyle = UI.token('surface') || (UI.isDark() ? '#1E1722' : '#FFFFFF');
           octx.fillRect(0, 0, out.width, out.height);
           octx.drawImage(canvas, 0, 0);
           out.toBlob(function (blob) {

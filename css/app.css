@@ -1,42 +1,51 @@
 /* ==========================================================================
    Shanikwanne Lashes — Studio App
-   Design system: dark-mode-first, premium beauty (rose/plum), not clinical.
+   Design system: light by default, premium beauty (rose/plum), not clinical.
+   Dark is available; the two palettes are designed as a pair — see THEME TOKENS.
    Tokens only — never hardcode a hex in a component.
    ========================================================================== */
 
+/* ===========================================================================
+   THEME TOKENS
+   Light is the default. The two palettes are designed as a pair, not inverted:
+   the rose that reads at 8.9:1 on near-black drops to ~1.6:1 on white, so light
+   mode uses a much deeper rose for anything carrying text or meaning, and keeps
+   the pale rose only for fills behind dark text.
+   Every contrast figure below is against that theme's own --bg.
+   =========================================================================== */
 :root{
-  /* --- surfaces (deep plum-black, warm not blue) --- */
-  --bg:#140F16;
-  --surface:#1E1722;
-  --surface-2:#2A2030;
-  --surface-3:#372A3E;
-  --scrim:rgba(10,6,12,.66);
+  /* --- surfaces (warm off-white, faint rose cast — not clinical grey) --- */
+  --bg:#FBF6F9;
+  --surface:#FFFFFF;
+  --surface-2:#F6EDF3;
+  --surface-3:#EDE0E9;
+  --scrim:rgba(58,38,52,.46);
 
   /* --- brand --- */
-  --primary:#F0A5C8;        /* rose — 8.9:1 on --bg */
-  --primary-dim:#C97FA4;
-  --on-primary:#2A0E1C;
-  --accent:#C4A9F5;         /* lavender — 8.4:1 on --bg */
-  --accent-dim:#9B7FD4;
-  --on-accent:#1B1030;
+  --primary:#A8336A;        /* deep rose — 7.4:1 on --bg */
+  --primary-dim:#C46F97;
+  --on-primary:#FFFFFF;
+  --accent:#6B45A6;         /* deep lavender — 7.9:1 on --bg */
+  --accent-dim:#8A67C0;
+  --on-accent:#FFFFFF;
 
   /* --- text --- */
-  --ink:#F6EDF4;            /* 15.2:1 on --bg */
-  --ink-2:#C9B8C6;          /* 8.1:1  */
-  --muted:#A2919F;          /* 5.2:1 — meets 4.5 AA */
-  --faint:#6E5F6C;          /* decorative only, never body text */
+  --ink:#2B1F29;            /* 14.6:1 */
+  --ink-2:#554653;          /* 7.6:1  */
+  --muted:#6E5D6B;          /* 5.3:1 — meets AA */
+  --faint:#A2919F;          /* decorative only, never body text */
 
-  /* --- semantic --- */
-  --ok:#7DDCA4;
-  --ok-bg:rgba(125,220,164,.12);
-  --warn:#F5C77E;
-  --warn-bg:rgba(245,199,126,.13);
-  --danger:#FF9A9A;
-  --danger-bg:rgba(255,154,154,.13);
-  --info:#A9C8F5;
+  /* --- semantic: all dark enough to carry text on a light surface --- */
+  --ok:#0E7A52;
+  --ok-bg:rgba(14,122,82,.10);
+  --warn:#8A5A07;
+  --warn-bg:rgba(138,90,7,.12);
+  --danger:#B3261E;
+  --danger-bg:rgba(179,38,30,.10);
+  --info:#2B5FA8;
 
-  --border:rgba(240,165,200,.18);
-  --border-strong:rgba(240,165,200,.34);
+  --border:rgba(168,51,106,.16);
+  --border-strong:rgba(168,51,106,.32);
   --ring:var(--primary);
 
   /* --- type scale (12 14 16 18 22 28 36) --- */
@@ -52,9 +61,10 @@
 
   --r-sm:10px; --r-md:14px; --r-lg:20px; --r-full:999px;
 
-  --sh-1:0 1px 2px rgba(0,0,0,.4);
-  --sh-2:0 6px 18px -8px rgba(0,0,0,.6);
-  --sh-3:0 18px 44px -16px rgba(0,0,0,.72);
+  /* light-mode shadows are soft and rose-tinted; the dark set is far heavier */
+  --sh-1:0 1px 2px rgba(80,40,65,.07);
+  --sh-2:0 6px 18px -8px rgba(80,40,65,.18);
+  --sh-3:0 18px 44px -16px rgba(80,40,65,.26);
 
   /* --- motion --- */
   --dur-fast:150ms; --dur:220ms; --dur-slow:320ms;
@@ -67,6 +77,94 @@
   --safe-t:env(safe-area-inset-top,0px);
   --safe-b:env(safe-area-inset-bottom,0px);
   --navh:64px;
+}
+
+/* --- dark palette: applied explicitly, or by system preference on "auto" --- */
+[data-theme="dark"] .hero{
+  background:
+    radial-gradient(120% 140% at 8% 0%, rgba(240,165,200,.20), transparent 58%),
+    radial-gradient(110% 130% at 100% 8%, rgba(196,169,245,.16), transparent 55%),
+    linear-gradient(170deg, var(--surface-3), var(--surface) 70%);
+}
+[data-theme="dark"] select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A2919F' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark){
+  [data-theme="auto"] select{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A2919F' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  }
+}
+
+[data-theme="dark"]{
+  --bg:#140F16;
+  --surface:#1E1722;
+  --surface-2:#2A2030;
+  --surface-3:#372A3E;
+  --scrim:rgba(10,6,12,.66);
+
+  --primary:#F0A5C8;        /* 8.9:1 on --bg */
+  --primary-dim:#C97FA4;
+  --on-primary:#2A0E1C;
+  --accent:#C4A9F5;         /* 8.4:1 on --bg */
+  --accent-dim:#9B7FD4;
+  --on-accent:#1B1030;
+
+  --ink:#F6EDF4;            /* 15.2:1 */
+  --ink-2:#C9B8C6;          /* 8.1:1  */
+  --muted:#A2919F;          /* 5.2:1  */
+  --faint:#6E5F6C;
+
+  --ok:#7DDCA4;
+  --ok-bg:rgba(125,220,164,.12);
+  --warn:#F5C77E;
+  --warn-bg:rgba(245,199,126,.13);
+  --danger:#FF9A9A;
+  --danger-bg:rgba(255,154,154,.13);
+  --info:#A9C8F5;
+
+  --border:rgba(240,165,200,.18);
+  --border-strong:rgba(240,165,200,.34);
+
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-2:0 6px 18px -8px rgba(0,0,0,.6);
+  --sh-3:0 18px 44px -16px rgba(0,0,0,.72);
+}
+
+@media (prefers-color-scheme: dark){
+  [data-theme="auto"]{
+    --bg:#140F16;
+    --surface:#1E1722;
+    --surface-2:#2A2030;
+    --surface-3:#372A3E;
+    --scrim:rgba(10,6,12,.66);
+
+    --primary:#F0A5C8;
+    --primary-dim:#C97FA4;
+    --on-primary:#2A0E1C;
+    --accent:#C4A9F5;
+    --accent-dim:#9B7FD4;
+    --on-accent:#1B1030;
+
+    --ink:#F6EDF4;
+    --ink-2:#C9B8C6;
+    --muted:#A2919F;
+    --faint:#6E5F6C;
+
+    --ok:#7DDCA4;
+    --ok-bg:rgba(125,220,164,.12);
+    --warn:#F5C77E;
+    --warn-bg:rgba(245,199,126,.13);
+    --danger:#FF9A9A;
+    --danger-bg:rgba(255,154,154,.13);
+    --info:#A9C8F5;
+
+    --border:rgba(240,165,200,.18);
+    --border-strong:rgba(240,165,200,.34);
+
+    --sh-1:0 1px 2px rgba(0,0,0,.4);
+    --sh-2:0 6px 18px -8px rgba(0,0,0,.6);
+    --sh-3:0 18px 44px -16px rgba(0,0,0,.72);
+  }
 }
 
 *,*::before,*::after{box-sizing:border-box}
@@ -240,7 +338,7 @@ input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="tr
 input:disabled,textarea:disabled,select:disabled{opacity:.45}
 input[readonly]{background:var(--surface); color:var(--ink-2); border-style:dashed}
 select{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A2919F' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236E5D6B' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 12px center; background-size:18px;
   padding-right:40px;
 }
@@ -346,9 +444,9 @@ legend{font-size:var(--t-sm); font-weight:700; color:var(--primary); padding:0 v
   position:relative; overflow:hidden;
   border-radius:var(--r-lg); padding:var(--s5) var(--s4); margin-bottom:var(--s5);
   background:
-    radial-gradient(120% 140% at 8% 0%, rgba(240,165,200,.20), transparent 58%),
-    radial-gradient(110% 130% at 100% 8%, rgba(196,169,245,.16), transparent 55%),
-    linear-gradient(170deg, var(--surface-3), var(--surface) 70%);
+    radial-gradient(120% 140% at 8% 0%, rgba(168,51,106,.13), transparent 58%),
+    radial-gradient(110% 130% at 100% 8%, rgba(107,69,166,.11), transparent 55%),
+    linear-gradient(170deg, var(--surface-2), var(--surface) 72%);
   border:1px solid var(--border-strong);
   box-shadow:var(--sh-3);
 }
@@ -452,18 +550,21 @@ legend{font-size:var(--t-sm); font-weight:700; color:var(--primary); padding:0 v
 .compare img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none}
 .compare .after-wrap{position:absolute; inset:0; overflow:hidden; will-change:clip-path}
 .compare .handle{
-  position:absolute; top:0; bottom:0; width:3px; background:var(--ink);
+  position:absolute; top:0; bottom:0; width:3px; background:#fff;
   box-shadow:0 0 12px rgba(0,0,0,.7); pointer-events:none; will-change:transform;
 }
 .compare .knob{
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-  width:44px; height:44px; border-radius:var(--r-full); background:var(--ink);
-  display:flex; align-items:center; justify-content:center; color:var(--bg);
+  width:44px; height:44px; border-radius:var(--r-full); background:#fff;
+  display:flex; align-items:center; justify-content:center; color:#1a1118;
+  box-shadow:0 2px 10px rgba(0,0,0,.45);
 }
 .compare .knob svg{width:20px;height:20px;stroke-width:2.5}
 .compare .tag{
+  /* overlaid on a photograph — fixed dark chip + white text in BOTH themes,
+     because the backdrop is the image, not the app surface */
   position:absolute; top:var(--s2); padding:3px 10px; border-radius:var(--r-full);
-  background:var(--scrim); color:var(--ink); font-size:var(--t-xs); font-weight:700;
+  background:rgba(14,9,13,.72); color:#fff; font-size:var(--t-xs); font-weight:700;
   backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
 }
 .compare .tag.l{left:var(--s2)} .compare .tag.r{right:var(--s2)}

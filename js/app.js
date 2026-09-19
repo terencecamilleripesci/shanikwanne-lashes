@@ -655,6 +655,10 @@
       }, 5000), { passive: true });
     });
 
+    // the inline <head> script set this from localStorage; re-apply from the
+    // merged settings so a default added in a later release still takes effect
+    UI.applyTheme(Store.settings().theme || 'light');
+
     requestPersistence();
     if (!location.hash) location.hash = '#/today';
 

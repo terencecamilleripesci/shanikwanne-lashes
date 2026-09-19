@@ -332,5 +332,31 @@
     return global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches;
   };
 
+  /* ---------------------------------------------------------------- theme */
+  /** Read a live design token — canvas work can't use CSS variables. */
+  UI.token = function (name) {
+    return getComputedStyle(document.documentElement).getPropertyValue('--' + name).trim();
+  };
+
+  /** True when the resolved theme is dark (handles 'auto'). */
+  UI.isDark = function () {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return !!(global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches);
+  };
+
+  UI.applyTheme = function (theme) {
+    if (['light', 'dark', 'auto'].indexOf(theme) < 0) theme = 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    // keep the iOS status bar / browser chrome in step
+    var meta = document.getElementById('meta-theme-color');
+    if (meta) {
+      // read after the attribute change so we get the resolved value
+      setTimeout(function () { meta.setAttribute('content', UI.token('bg') || '#FBF6F9'); }, 0);
+    }
+    return theme;
+  };
+
   global.UI = UI;
 })(window);

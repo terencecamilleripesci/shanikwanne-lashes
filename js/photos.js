@@ -175,7 +175,9 @@
       c.width = W; c.height = H;
       var x = c.getContext('2d');
 
-      // background
+      // Deliberately dark in BOTH app themes: this is a branded asset for
+      // Reels/TikTok, where a dark card reads as premium and matches the feed.
+      // It is an export, not app chrome, so it does not follow --bg.
       x.fillStyle = '#140F16';
       x.fillRect(0, 0, W, H);
 
