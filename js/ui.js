@@ -178,6 +178,9 @@
     return api;
   };
 
+  /** True while any sheet/dialog is open — never stack a prompt on her work. */
+  UI.anySheetOpen = function () { return openSheets.length > 0; };
+
   /* -------------------------------------------------------------- confirm */
   UI.confirm = function (opts) {
     var s = UI.sheet({

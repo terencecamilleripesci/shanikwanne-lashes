@@ -468,6 +468,26 @@ legend{font-size:var(--t-sm); font-weight:700; color:var(--primary); padding:0 v
 }
 .compare .tag.l{left:var(--s2)} .compare .tag.r{right:var(--s2)}
 
+/* ---------- sketch pad (Apple Pencil) ---------- */
+.sketch-wrap{
+  border-radius:var(--r-md); overflow:hidden; border:1px solid var(--border-strong);
+  background:var(--surface-2); box-shadow:var(--sh-2);
+}
+.sketch-canvas{
+  display:block; width:100%; height:min(56vh,440px);
+  /* must be none, or the page scrolls out from under her hand mid-stroke */
+  touch-action:none; cursor:crosshair;
+}
+@media (min-width:768px){ .sketch-canvas{height:min(62vh,600px)} }
+.sketch-tools{display:flex; gap:var(--s3); flex-wrap:wrap; margin-top:var(--s3); align-items:center}
+.swatch{
+  width:40px; height:40px; border-radius:var(--r-full); border:2px solid transparent;
+  cursor:pointer; padding:0; box-shadow:var(--sh-1);
+  transition:transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast);
+}
+.swatch.on{border-color:var(--ink); transform:scale(1.12)}
+.swatch:active{transform:scale(.94)}
+
 /* ---------- signature ---------- */
 .sigpad{
   width:100%; aspect-ratio:5/2; background:var(--surface-2); border-radius:var(--r-md);

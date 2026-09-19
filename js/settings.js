@@ -104,15 +104,40 @@
     }
 
     /* ---- security ---- */
-    b += section('Security', 'lock',
-      '<p class="help" style="margin-bottom:12px">Client health records are sensitive. A PIN stops anyone who picks up the iPad from reading them.</p>' +
-      '<form data-pin novalidate>' +
-      UI.check({ label: 'Require a PIN to open the app', name: 'pinEnabled', checked: s.pinEnabled }) +
-      UI.field({ label: 'PIN', name: 'pin', type: 'number', value: s.pin, inputmode: 'numeric',
-                 placeholder: '4–8 digits', help: 'There is no way to recover a forgotten PIN — write it down somewhere safe.' }) +
-      UI.check({ label: 'Lock again when the app goes to the background', name: 'lockOnBackground', checked: s.lockOnBackground }) +
-      '<button class="btn btn-primary btn-block btn-sm" type="submit">Save security</button>' +
-      '</form>');
+    var configured = Auth.isConfigured();
+    var au = s.auth || {};
+    var lockLabel = { 0: 'never', 5: 'after 5 minutes', 15: 'after 15 minutes', 60: 'after 1 hour' }[Number(au.autoLockMin)] || 'after 15 minutes';
+
+    b += section('Sign-in', 'lock',
+      '<div class="row-between" style="margin-bottom:12px">' +
+        '<span style="font-weight:600">Passcode</span>' +
+        (configured ? UI.badge('ok', 'On', 'check') : UI.badge('danger', 'Off', 'alert')) +
+      '</div>' +
+      (configured
+        ? '<dl style="margin:0 0 12px">' +
+            '<div class="kv"><dt>Keep me signed in</dt><dd>' + (au.remember ? 'Yes' : 'No') + '</dd></div>' +
+            '<div class="kv"><dt>Locks again</dt><dd>' + UI.esc(lockLabel) + '</dd></div>' +
+          '</dl>' +
+          '<button class="btn btn-ghost btn-block btn-sm" data-action="auth-change" type="button">Change passcode</button>' +
+          '<button class="btn btn-ghost btn-block btn-sm" data-action="auth-signout" type="button" style="margin-top:8px">' +
+            'Sign out now</button>' +
+          '<button class="btn btn-quiet btn-block btn-sm" data-action="auth-off" type="button" style="margin-top:8px">' +
+            'Turn the passcode off</button>'
+        : '<div class="alert alert-danger" style="margin-bottom:12px">' + UI.icon('alert') +
+            '<div><strong>Client records are unprotected</strong>Anyone who opens this iPad can read ' +
+            'allergies, eye conditions and client photos.</div></div>' +
+          '<button class="btn btn-primary btn-block btn-sm" data-action="auth-change" type="button">' +
+            UI.icon('lock') + 'Set a passcode</button>') +
+      '<hr class="divider">' +
+      '<p class="help"><strong>Be clear on what this does.</strong> It stops someone picking up the ' +
+      'iPad and reading client records. It is a lock, not encryption — the records still sit on this ' +
+      'device. For real protection also turn on the iPad\'s own passcode or Face ID, and do not lend ' +
+      'the device out.' +
+      (Auth.isStrongHashing()
+        ? ' Your passcode is stored salted and hashed (SHA-256).'
+        : ' <strong>Note:</strong> this page is not on a secure (https) connection, so a weaker ' +
+          'fallback hash is in use. Once it is hosted over https the strong one takes over.') +
+      '</p>');
 
     /* ---- demo data ---- */
     b += section('Demo client', 'info',
@@ -216,14 +241,44 @@
       return 'Lists saved';
     });
 
-    on(screen, '[data-pin]', function (f) {
-      if (f.pinEnabled) {
-        if (!/^\d{4,8}$/.test(f.pin || '')) return { field: 'pin', msg: 'Use 4 to 8 digits.' };
-      }
-      Store.saveSettings({ pinEnabled: f.pinEnabled, pin: f.pin, lockOnBackground: f.lockOnBackground });
-      return f.pinEnabled ? 'PIN set' : 'PIN turned off';
-    });
   }
+
+  /* -------------------------------------------------------------- sign-in */
+  App.actions['auth-change'] = function () { App.Lock.setupSheet(); };
+
+  App.actions['auth-signout'] = function () {
+    Auth.signOut();
+    UI.toast('Signed out', 'ok');
+    App.Lock.show();
+  };
+
+  App.actions['auth-off'] = function () {
+    UI.sheet({
+      title: 'Turn the passcode off?',
+      body:
+        '<div class="alert alert-danger" style="margin-bottom:16px">' + UI.icon('alert') +
+          '<div><strong>Client records will be unprotected</strong>Anyone who opens this iPad will be ' +
+          'able to read allergies, eye conditions and client photos.</div></div>' +
+        '<form data-form novalidate>' +
+        UI.field({ label: 'Confirm your passcode', name: 'p', type: 'password', required: true,
+                   inputmode: 'numeric', autocomplete: 'current-password' }) +
+        '<button class="btn btn-danger btn-block" type="submit">Turn it off</button>' +
+        '<button class="btn btn-quiet btn-block" data-close type="button" style="margin-top:8px">Keep it on</button>' +
+        '</form>',
+      onMount: function (el, api) {
+        el.querySelector('[data-form]').addEventListener('submit', function (e) {
+          e.preventDefault();
+          UI.clearErrors(el);
+          Auth.disable(UI.formData(el).p).then(function (okd) {
+            if (!okd) return UI.fieldError(el, 'p', 'That passcode is not correct.');
+            api.close(true);
+            UI.toast('Passcode turned off', 'ok');
+            App.render();
+          });
+        });
+      }
+    });
+  };
 
   function on(screen, sel, handler) {
     var form = screen.querySelector(sel);

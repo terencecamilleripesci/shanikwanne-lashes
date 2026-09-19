@@ -526,6 +526,26 @@
     deletePhoto: function (id) {
       return tx('readwrite').then(function (os) { return wrap(os.delete(id)); });
     },
+
+    /* --- lash-map drawings: same store, kind 'sketch', one per session --- */
+    sketchFor: function (recordId) {
+      return Store.photosFor(recordId).then(function (list) {
+        return list.filter(function (p) { return p.kind === 'sketch'; })[0] || null;
+      });
+    },
+    saveSketch: function (clientId, recordId, blob) {
+      // one drawing per session — replace rather than accumulate
+      return Store.sketchFor(recordId).then(function (old) {
+        return old ? Store.deletePhoto(old.id) : null;
+      }).then(function () {
+        return Store.addPhoto({ clientId: clientId, recordId: recordId, kind: 'sketch', blob: blob });
+      });
+    },
+    deleteSketch: function (recordId) {
+      return Store.sketchFor(recordId).then(function (s) {
+        return s ? Store.deletePhoto(s.id) : null;
+      });
+    },
     deletePhotosFor: function (clientId) {
       return Store.photosForClient(clientId).then(function (list) {
         return Promise.all(list.map(function (p) { return Store.deletePhoto(p.id); }));

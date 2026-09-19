@@ -276,7 +276,9 @@
   App.mountPhotos = function (screen, c) {
     var host = screen.querySelector('[data-photos]');
     if (!host) return;
-    Store.photosForClient(c.id).then(function (list) {
+    Store.photosForClient(c.id).then(function (all) {
+      // drawings live on the session, not in the photo grid
+      var list = all.filter(function (p) { return p.kind !== 'sketch'; });
       if (!list.length) {
         host.innerHTML = UI.empty({ icon: 'image', title: 'No photos yet', message: 'Shoot a before and after and the app will pair them for you.' });
         return;

@@ -470,49 +470,169 @@
      Lock screen (optional PIN)
      ======================================================================= */
   var Lock = {
-    el: null,
-    show: function () {
-      Lock.el = Lock.el || document.getElementById('lockscreen');
-      Lock.el.classList.remove('hide');
-      document.body.style.overflow = 'hidden';
-      setTimeout(function () { document.getElementById('pin-input').focus(); }, 80);
-    },
+    el: function () { return document.getElementById('lockscreen'); },
+    tries: 0,
+
     hide: function () {
-      if (Lock.el) Lock.el.classList.add('hide');
+      var el = Lock.el();
+      el.classList.add('hide');
+      el.innerHTML = '';
       document.body.style.overflow = '';
       App._locked = false;
+      Auth.touch();
     },
-    init: function () {
-      var input = document.getElementById('pin-input');
-      var err = document.getElementById('pin-err');
-      function tryPin() {
-        if (input.value === Store.settings().pin) {
-          err.classList.add('hide');
+
+    /** Sign-in screen. */
+    show: function () {
+      var el = Lock.el();
+      App._locked = true;
+      var a = Store.settings().auth || {};
+      el.innerHTML =
+        '<div class="card" style="width:min(360px,88vw);text-align:center">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true" ' +
+            'style="width:38px;height:38px;color:var(--primary);stroke-width:1.5"><use href="#i-lock"/></svg>' +
+          '<h2 style="margin:12px 0 4px">' + UI.esc(Store.settings().studioName || 'Studio') + '</h2>' +
+          '<p style="font-size:.875rem;color:var(--muted);margin-bottom:16px">Enter your passcode to open client records.</p>' +
+          '<label for="pc" style="position:absolute;left:-9999px">Passcode</label>' +
+          '<input id="pc" type="password" inputmode="numeric" autocomplete="current-password" ' +
+            'placeholder="••••" style="text-align:center;font-size:1.5rem;letter-spacing:.4em">' +
+          '<p id="pc-err" class="hide" style="color:var(--danger);font-size:.8125rem;font-weight:600;margin:8px 0 0" role="alert"></p>' +
+          '<label class="check" for="pc-rem" style="justify-content:center;margin:4px 0 12px">' +
+            '<input type="checkbox" id="pc-rem"' + (a.remember ? ' checked' : '') + '>' +
+            '<span>Keep me signed in on this iPad</span></label>' +
+          '<button class="btn btn-primary btn-block" id="pc-go" type="button">Unlock</button>' +
+        '</div>';
+      el.classList.remove('hide');
+      document.body.style.overflow = 'hidden';
+
+      var input = el.querySelector('#pc');
+      var err = el.querySelector('#pc-err');
+      var go = el.querySelector('#pc-go');
+
+      function attempt() {
+        var val = input.value;
+        if (!val) return;
+        go.setAttribute('aria-disabled', 'true');
+        Auth.unlock(val, el.querySelector('#pc-rem').checked).then(function (okp) {
+          go.removeAttribute('aria-disabled');
+          if (okp) { Lock.tries = 0; input.value = ''; err.classList.add('hide'); Lock.hide(); return; }
+          Lock.tries++;
           input.value = '';
-          Lock.hide();
-        } else {
-          err.textContent = 'Wrong PIN.';
+          err.textContent = Lock.tries >= 3
+            ? 'Still wrong. There is no way to recover a forgotten passcode.'
+            : 'Wrong passcode.';
           err.classList.remove('hide');
-          input.value = '';
           input.focus();
-        }
+        });
       }
-      document.getElementById('pin-go').addEventListener('click', tryPin);
-      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryPin(); });
+      go.addEventListener('click', attempt);
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') attempt(); });
+      setTimeout(function () { input.focus(); }, 80);
     },
-    maybeLock: function () {
-      var s = Store.settings();
-      if (s.pinEnabled && s.pin) { App._locked = true; Lock.show(); }
+
+    /** First-run / Settings passcode setup. */
+    setupSheet: function (onDone) {
+      UI.sheet({
+        title: Auth.isConfigured() ? 'Change passcode' : 'Set a passcode',
+        body:
+          '<div class="alert alert-warn" style="margin-bottom:16px">' + UI.icon('shield') +
+            '<div><strong>What this protects</strong>It stops anyone who picks up this iPad from ' +
+            'reading client health records. It is a lock, not encryption — for full protection also ' +
+            'use the iPad\'s own passcode or Face ID.</div></div>' +
+          '<form data-form novalidate>' +
+          (Auth.isConfigured()
+            ? UI.field({ label: 'Current passcode', name: 'old', type: 'password', required: true,
+                         autocomplete: 'current-password', inputmode: 'numeric' })
+            : '') +
+          UI.field({ label: 'New passcode', name: 'p1', type: 'password', required: true,
+                     autocomplete: 'new-password', inputmode: 'numeric',
+                     help: '4 to 12 digits. There is no way to recover it — write it down somewhere safe.' }) +
+          UI.field({ label: 'Confirm passcode', name: 'p2', type: 'password', required: true,
+                     autocomplete: 'new-password', inputmode: 'numeric' }) +
+          UI.check({ label: 'Keep me signed in on this iPad', name: 'remember', checked: true }) +
+          UI.field({ label: 'Lock again after', name: 'autoLockMin', type: 'select',
+                     value: String((Store.settings().auth || {}).autoLockMin != null
+                       ? (Store.settings().auth || {}).autoLockMin : 15),
+                     options: [
+                       { value: '0', label: 'Never (until I sign out)' },
+                       { value: '5', label: '5 minutes' },
+                       { value: '15', label: '15 minutes' },
+                       { value: '60', label: '1 hour' }
+                     ],
+                     help: 'Applies when the app has been in the background.' }) +
+          '<button class="btn btn-primary btn-block" type="submit">Save passcode</button>' +
+          '</form>',
+        onMount: function (elS, api) {
+          elS.querySelector('[data-form]').addEventListener('submit', function (e) {
+            e.preventDefault();
+            UI.clearErrors(elS);
+            var f = UI.formData(elS);
+            if (!/^\d{4,12}$/.test(f.p1 || '')) return UI.fieldError(elS, 'p1', 'Use 4 to 12 digits.');
+            if (f.p1 !== f.p2) return UI.fieldError(elS, 'p2', 'The two passcodes do not match.');
+
+            var done = function () {
+              api.close(true);
+              UI.toast('Passcode saved', 'ok');
+              if (onDone) onDone();
+              App.render();
+            };
+            if (Auth.isConfigured()) {
+              Auth.change(f.old, f.p1).then(function (okc) {
+                if (!okc) return UI.fieldError(elS, 'old', 'That is not your current passcode.');
+                Auth.setAutoLock(f.autoLockMin);
+                if (!f.remember) Auth.signOut();
+                done();
+              });
+            } else {
+              Auth.setup(f.p1, f.remember, f.autoLockMin).then(done);
+            }
+          });
+        }
+      });
+    },
+
+    /** Called on boot and when returning from the background. */
+    gate: function () {
+      if (!Auth.isConfigured()) return;
+      if (Auth.remembered()) { App._locked = false; Auth.touch(); return; }
+      Lock.show();
     }
   };
   App.Lock = Lock;
+
+  /** One-time nudge: this app holds health data, it should have a passcode. */
+  App.offerPasscode = function () {
+    // never ambush her on top of something she's already doing — retry later
+    if (UI.anySheetOpen() || App._locked) {
+      setTimeout(App.offerPasscode, 20000);
+      return;
+    }
+    UI.sheet({
+      title: 'Protect client records',
+      body:
+        '<p style="color:var(--ink-2);font-size:.9375rem">This app stores allergies, eye conditions ' +
+        'and photos of your clients. Set a passcode so nobody who picks up the iPad can read them.</p>' +
+        '<div class="stack">' +
+          '<button class="btn btn-primary btn-block" data-set type="button">Set a passcode</button>' +
+          '<button class="btn btn-quiet btn-block" data-skip type="button">Not now</button>' +
+        '</div>',
+      onMount: function (el, api) {
+        el.querySelector('[data-set]').addEventListener('click', function () {
+          api.close(true);
+          setTimeout(function () { App.Lock.setupSheet(); }, 220);
+        });
+        el.querySelector('[data-skip]').addEventListener('click', function () {
+          Store.saveSettings({ authDeclined: true });
+          api.close(true);
+        });
+      }
+    });
+  };
 
   /* =======================================================================
      Boot
      ======================================================================= */
   function boot() {
-    Lock.init();
-
     global.addEventListener('hashchange', App.render);
 
     Store.onChange(function (kind, e) {
@@ -521,20 +641,31 @@
       }
     });
 
-    // re-lock when she puts the iPad down
+    // re-lock when she puts the iPad down and comes back later
     document.addEventListener('visibilitychange', function () {
-      var s = Store.settings();
-      if (document.hidden && s.pinEnabled && s.pin && s.lockOnBackground) {
-        App._locked = true;
-      } else if (!document.hidden && App._locked) {
-        Lock.show();
-      }
+      if (!Auth.isConfigured()) return;
+      if (document.hidden) { Auth.touch(); return; }
+      if (!Auth.remembered()) Lock.gate();
+    });
+
+    // keep the session fresh while she's actually using it
+    ['pointerdown', 'keydown'].forEach(function (ev) {
+      document.addEventListener(ev, UI.debounce(function () {
+        if (!App._locked) Auth.touch();
+      }, 5000), { passive: true });
     });
 
     requestPersistence();
     if (!location.hash) location.hash = '#/today';
-    App.render();
-    Lock.maybeLock();
+
+    Auth.migrate().then(function () {
+      App.render();
+      Lock.gate();
+      // holds health data — prompt once if there's no passcode at all
+      if (!Auth.isConfigured() && !Store.settings().authDeclined) {
+        setTimeout(App.offerPasscode, 900);
+      }
+    });
 
     // daily digest, after the first paint
     setTimeout(function () { Notif.runDaily(); }, 1200);

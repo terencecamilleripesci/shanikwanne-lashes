@@ -43,6 +43,10 @@ The loop it is built around is the one every good lash app has:
   bad bottle rather than blaming your own application.
 - **Before/after photos** with a drag-compare slider, and a 9:16 share card for
   Reels/TikTok. The share card is **blocked unless that client ticked photo consent**.
+- **Drawable lash map (iPad).** A template of both eyes with numbered zone guides,
+  drawn on with the Apple Pencil. Pressure-sensitive width, palm rejection once a pen
+  is detected, undo/redo, eraser, four colours. Saved against the session alongside
+  the numeric map — one drawing per session.
 - **Aftercare** card that can be texted straight to the client.
 
 
@@ -71,7 +75,19 @@ treated as such:
 - **Per-client erase** really erases — profile, appointments, sessions and photo blobs.
 - **Photo consent is a separate tick** from treatment consent, and the share-card
   feature refuses to run without it.
-- **PIN lock** is available and re-locks when the app is backgrounded.
+- **Passcode sign-in** with "keep me signed in on this iPad" and an auto-lock window
+  (never / 5 min / 15 min / 1 hour). The passcode is stored **salted and hashed**
+  (SHA-256 where available), never in plain text.
+
+**Be honest with her about the passcode.** It stops someone who picks up the iPad
+from reading client records. It is **a lock, not encryption** — the records still sit
+on the device and someone with it unlocked plus developer tools could read them. The
+real protections are the iPad's own passcode/Face ID and not lending the device out.
+The Settings screen says exactly this.
+
+**Hosting does not leak client data.** Only the app's *code* is published. Every
+client record lives on the device and is never uploaded, so a public repo exposes
+nothing about any client.
 
 **The flip side:** because it is device-only, *if the iPad is lost or wiped, the
 records go with it.* Export a backup regularly (Settings → Backup). The backup is a
@@ -111,6 +127,8 @@ js/store.js       data layer (localStorage + IndexedDB), all business rules
 js/ui.js          icons, toasts, sheets, forms, validation
 js/lashmap.js     the lash map builder
 js/photos.js      capture, downscale, compare slider, share card
+js/sketch.js      Apple Pencil lash-map drawing pad
+js/auth.js        passcode lock (salted + hashed), keep-me-signed-in
 js/app.js         boot, router, nav, notifications, Today + Clients
 js/screens.js     client detail, health, consent, photos
 js/sessions.js    session record sheet, booking, calendar
@@ -133,6 +151,13 @@ sw.js             service worker — NETWORK-FIRST
   and looks like a broken app. Bump `const CACHE` in `sw.js` on every deploy.
 - **Photos go in IndexedDB, not localStorage** — the ~5MB quota dies instantly otherwise.
 - Photos are downscaled to 1600px / JPEG 0.82 on capture.
+- **`getCoalescedEvents()` can return an EMPTY array.** The sketch pad must fall back
+  to the event itself, or strokes silently never draw. This cost a debugging round.
+- **`setPointerCapture` can throw** — wrap it, or a failure kills the whole stroke.
+- **Saving a full-size sketch PNG takes a second or two** on a modest device; the save
+  button shows a spinner. Not a hang.
+- **Never stack the first-run passcode prompt on an open sheet** — use
+  `UI.anySheetOpen()` and retry, or it ambushes her mid-drawing.
 
 - **IndexedDB stalls under `--virtual-time-budget`.** Headless tests that touch
   photos must run in real time (drive the browser without virtual time and report
@@ -155,7 +180,7 @@ cd shanikwanne-lashes && python3 -m http.server 8231
 
 The interaction suite was a temporary `_t.html` harness (iframe + real dispatched
 events, asserting into `document.title`), deleted after use per the workspace rules.
-Last run: **44 cases, 0 failed** (demo + routing + erasure suite; an earlier 74-case store/logic suite also passed), covering the patch-test gate, consent versioning,
+Last run: **27-case regression + 35-case auth/sketch suite + 9-case drawing suite, all 0 failed** (demo + routing + erasure suite; an earlier 74-case store/logic suite also passed), covering the patch-test gate, consent versioning,
 session pre-fill, overdue maths, retention grouping, the map builder, routing and
 erasure.
 

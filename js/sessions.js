@@ -67,7 +67,16 @@
       '</div>' +
       '</fieldset>' +
 
-      '<div data-map style="margin-bottom:16px"></div>' +
+      '<div data-map style="margin-bottom:12px"></div>' +
+      '<div class="card card-2" style="margin-bottom:16px">' +
+        '<div class="row-between" style="gap:8px">' +
+          '<span class="grow"><strong style="display:block;font-size:.9375rem">Drawn map</strong>' +
+          '<span class="help">Sketch it with the Apple Pencil instead of typing.</span></span>' +
+        '</div>' +
+        '<div data-sketch-preview style="margin-top:12px"></div>' +
+        '<button class="btn btn-accent btn-block btn-sm" data-draw type="button" style="margin-top:12px">' +
+          UI.icon('edit') + '<span data-draw-label>Draw the map</span></button>' +
+      '</div>' +
 
       '<fieldset><legend>Adhesive</legend>' +
       UI.field({ label: 'Brand', name: 'adBrand', type: 'select', options: cat.adhesives, value: (draft.adhesive || {}).brand }) +
@@ -97,6 +106,63 @@
       dirty: function () { return isNew; },
       onMount: function (el, api) {
         LashMap.mount(el.querySelector('[data-map]'), mapRef.map, function (m) { mapRef.map = m; });
+
+        /* ---- drawn lash map (held in memory until the session is saved) ---- */
+        var pendingSketch = null;   // Blob for a new/edited drawing
+        var clearSketch = false;    // she deleted the existing one
+        var preview = el.querySelector('[data-sketch-preview]');
+        var drawLabel = el.querySelector('[data-draw-label]');
+        var previewUrl = null;
+
+        function showSketch(blob) {
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          if (!blob) {
+            preview.innerHTML = '';
+            drawLabel.textContent = 'Draw the map';
+            previewUrl = null;
+            return;
+          }
+          previewUrl = URL.createObjectURL(blob);
+          preview.innerHTML = '<img src="' + previewUrl + '" alt="Drawn lash map for this session" ' +
+            'style="width:100%;border-radius:10px;display:block;border:1px solid var(--border)">';
+          drawLabel.textContent = 'Edit the drawing';
+        }
+
+        // an existing session may already have one
+        if (draft.id) {
+          Store.sketchFor(draft.id).then(function (s) {
+            if (s && !clearSketch) showSketch(s.blob);
+          });
+        }
+
+        el.querySelector('[data-draw]').addEventListener('click', function () {
+          var existing = pendingSketch;
+          var go = function (blob) {
+            Sketch.open({
+              existingBlob: blob,
+              onSave: function (out) {
+                pendingSketch = out;
+                clearSketch = false;
+                showSketch(out);
+                UI.toast('Drawing attached — save the session to keep it', 'ok');
+              },
+              onDelete: function () {
+                pendingSketch = null;
+                clearSketch = true;
+                showSketch(null);
+                UI.toast('Drawing removed', 'ok');
+              }
+            });
+          };
+          if (existing) return go(existing);
+          if (draft.id) return Store.sketchFor(draft.id).then(function (s) { go(s ? s.blob : null); });
+          go(null);
+        });
+
+        // hand the sketch state to the submit handler below
+        el._sketchState = function () {
+          return { blob: pendingSketch, clear: clearSketch };
+        };
 
         // full set / fill toggle
         el.querySelectorAll('[data-fill]').forEach(function (btn) {
@@ -134,11 +200,22 @@
           var saved = Store.saveRecord(rec);
           if (!saved) return UI.toast('Could not save — storage may be full.', 'err');
 
-          api.close(true);
-          UI.toast('Session saved', 'ok');
+          // persist the drawing now that the session has an id
+          var sk = el._sketchState ? el._sketchState() : { blob: null, clear: false };
+          var sketchWork = sk.blob
+            ? Store.saveSketch(c.id, saved.id, sk.blob)
+            : (sk.clear ? Store.deleteSketch(saved.id) : Promise.resolve(null));
 
-          if (isNew) App.offerRebook(c, saved);
-          App.render();
+          sketchWork.catch(function (err) {
+            // the session itself is already safe — say so rather than fail silently
+            console.warn('[session] sketch save failed', err);
+            UI.toast('Session saved, but the drawing could not be stored.', 'err');
+          }).then(function () {
+            api.close(true);
+            UI.toast('Session saved', 'ok');
+            if (isNew) App.offerRebook(c, saved);
+            App.render();
+          });
         });
       }
     });
@@ -195,6 +272,7 @@
         (r.durationMin ? row('Duration', r.durationMin + ' min') : '') +
         (r.price ? row('Price', UI.money(r.price)) : '') +
         '</dl></div>' +
+        '<div data-sk-view></div>' +
         LashMap.preview(r.map) +
         (r.notes ? '<div class="card" style="margin-top:16px;white-space:pre-wrap;font-size:.9375rem;color:var(--ink-2)">' +
           UI.esc(r.notes) + '</div>' : '') +
@@ -203,6 +281,16 @@
           '<button class="btn btn-danger grow" data-del type="button">' + UI.icon('trash') + 'Delete</button>' +
         '</div>',
       onMount: function (el, api) {
+        // the drawn map, if she made one
+        Store.sketchFor(r.id).then(function (s) {
+          if (!s) return;
+          var host = el.querySelector('[data-sk-view]');
+          var url = URL.createObjectURL(s.blob);
+          host.innerHTML = '<div class="eye-label" style="margin-bottom:8px">Drawn map</div>' +
+            '<img src="' + url + '" alt="Drawn lash map for this session" ' +
+            'style="width:100%;border-radius:12px;display:block;border:1px solid var(--border);margin-bottom:16px">';
+        });
+
         el.querySelector('[data-edit]').addEventListener('click', function () {
           api.close(true);
           setTimeout(function () { App.sessionSheet(r, c); }, 220);
