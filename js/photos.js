@@ -229,7 +229,8 @@
   };
 
   Photos.share = function (blob, filename, text) {
-    var file = new File([blob], filename, { type: 'image/jpeg' });
+    // respect the blob's real type — a JSON backup must NOT be tagged image/jpeg
+    var file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       return navigator.share({ files: [file], text: text || '' })
         .then(function () { return 'shared'; })

@@ -239,6 +239,18 @@
       b += '</div>';
     }
 
+    /* --- backup nudge: a records app with no backup is one lost iPad from zero --- */
+    var realClients = Store.clients().filter(function (c) { return !c.demo; }).length;
+    var lbIso = set.lastBackupAt ? String(set.lastBackupAt).slice(0, 10) : null;
+    var lbDays = lbIso ? Store.daysBetween(lbIso, Store.todayISO()) : null;
+    if (realClients && (lbDays == null || lbDays >= 7)) {
+      b += '<div class="alert alert-warn" style="margin-bottom:24px">' + UI.icon('shield') +
+        '<div class="grow"><strong>' + (lbIso ? 'Backup is ' + lbDays + ' days old' : 'No backup yet') + '</strong>' +
+        'Save her records to iCloud so a lost or wiped iPad can\'t erase them.' +
+        '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" data-action="export-all" type="button">Back up now</button></div>' +
+        '</div></div>';
+    }
+
     /* --- stats --- */
     b += '<div class="stats">' +
       '<div class="stat"><div class="v num">' + s.todayCount + '</div><div class="k">Today</div></div>' +

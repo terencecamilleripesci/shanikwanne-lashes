@@ -165,13 +165,22 @@
           UI.icon('sparkle') + 'Load a demo client</button>');
 
     /* ---- backup ---- */
+    var lbIso = s.lastBackupAt ? String(s.lastBackupAt).slice(0, 10) : null;
+    var lbDays = lbIso ? Store.daysBetween(lbIso, Store.todayISO()) : null;
+    var lbLine = lbIso
+      ? '<div class="help" style="margin-bottom:12px">Last backup: <strong>' + UI.date(lbIso) + '</strong>' +
+        (lbDays > 0 ? ' (' + lbDays + ' day' + (lbDays === 1 ? '' : 's') + ' ago)' : ' (today)') + '</div>'
+      : '<div class="alert alert-warn" style="margin-bottom:12px">' + UI.icon('clock') +
+        '<div><strong>Not backed up yet</strong>Save a backup to iCloud so a lost iPad doesn\'t lose her clients.</div></div>';
+
     b += section('Backup', 'download',
       '<div class="alert alert-warn" style="margin-bottom:12px">' + UI.icon('alert') +
         '<div><strong>Everything lives on this device only</strong>If the iPad is lost, wiped or the app is deleted, ' +
-        'the records go with it. Export a backup regularly and keep it somewhere safe.</div></div>' +
+        'the records go with it. Back up regularly and save it to iCloud Drive.</div></div>' +
+      lbLine +
       '<div data-storage class="help" style="margin-bottom:12px"></div>' +
       '<button class="btn btn-primary btn-block btn-sm" data-action="export-all" type="button">' +
-        UI.icon('download') + 'Export full backup</button>' +
+        UI.icon('share') + 'Back up to iCloud / Files</button>' +
       '<button class="btn btn-ghost btn-block btn-sm" data-action="import-all" type="button" style="margin-top:8px">' +
         UI.icon('upload') + 'Restore from a backup</button>');
 
@@ -422,9 +431,19 @@
     var close = UI.toast('Building backup…');
     Store.exportAll().then(function (pack) {
       var blob = new Blob([JSON.stringify(pack)], { type: 'application/json' });
+      var name = 'shanikwanne-backup-' + Store.todayISO() + '.json';
       close();
-      Photos.download(blob, 'shanikwanne-backup-' + Store.todayISO() + '.json');
-      UI.toast('Backup saved — keep it somewhere safe', 'ok');
+      // Share sheet first: on iPhone/iPad this offers "Save to Files → iCloud
+      // Drive", which is the free cloud backup. Falls back to a download on
+      // desktop or if sharing is unavailable.
+      return Photos.share(blob, name, 'Shanikwanne Lashes backup — save this to iCloud Drive').then(function (how) {
+        if (how === 'cancelled') { UI.toast('Backup cancelled — not saved', 'err'); return; }
+        Store.saveSettings({ lastBackupAt: new Date().toISOString() });
+        UI.toast(how === 'downloaded'
+          ? 'Backup downloaded — move it somewhere safe'
+          : 'Backup saved — choose iCloud Drive to keep it in the cloud', 'ok');
+        App.render();
+      });
     }).catch(function (e) {
       close();
       UI.toast('Backup failed: ' + (e.message || ''), 'err');
