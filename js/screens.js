@@ -280,7 +280,7 @@
       // drawings live on the session, not in the photo grid
       var list = all.filter(function (p) { return p.kind !== 'sketch'; });
       if (!list.length) {
-        host.innerHTML = UI.empty({ icon: 'image', title: 'No photos yet', message: 'Shoot a before and after and the app will pair them for you.' });
+        host.innerHTML = UI.empty({ icon: 'image', title: 'No photos yet', message: 'Add a before and an after — take them now or pick from your gallery — and the app pairs them for you.' });
         return;
       }
       // group by session (recordId), newest first
@@ -333,14 +333,39 @@
   };
 
   /* ---------------------------------------------------- photo actions */
+  /**
+   * Let her either shoot live OR pick an existing photo from the gallery.
+   * `capture:'environment'` (camera:true) opens the rear camera directly and,
+   * on iPhone, HIDES the Photo Library — so she could never import a photo she
+   * already had. Offer both, explicitly.
+   */
   function shoot(kind) {
+    UI.sheet({
+      title: (kind === 'before' ? 'Before' : 'After') + ' photo',
+      body:
+        '<div class="stack">' +
+          '<button class="btn btn-primary btn-block" data-cam type="button">' +
+            UI.icon('camera') + 'Take a photo</button>' +
+          '<button class="btn btn-ghost btn-block" data-lib type="button">' +
+            UI.icon('image') + 'Choose from gallery</button>' +
+        '</div>',
+      onMount: function (el, api) {
+        // fire the picker inside the tap, THEN close the sheet — iOS only opens
+        // a file input from a genuine user gesture.
+        el.querySelector('[data-cam]').addEventListener('click', function () { grabPhoto(kind, true); api.close(true); });
+        el.querySelector('[data-lib]').addEventListener('click', function () { grabPhoto(kind, false); api.close(true); });
+      }
+    });
+  }
+
+  function grabPhoto(kind, camera) {
     var c = App._client;
     var last = Store.lastRecord(c.id);
     Photos.capture({
       clientId: c.id,
       recordId: last ? last.id : null,
       kind: kind,
-      camera: true,
+      camera: camera,
       multiple: true
     }).then(function (saved) { if (saved.length) App.render(); });
   }
