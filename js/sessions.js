@@ -336,7 +336,12 @@
             '<span class="grow"><strong>' + UI.esc(client.name) + '</strong></span></div>' +
             '<input type="hidden" name="clientId" value="' + client.id + '">'
           : UI.field({ label: 'Client', name: 'clientId', type: 'select', required: true, blank: 'Choose a client…',
-              options: clients.map(function (c) { return { value: c.id, label: c.name }; }) })) +
+              options: [{ value: '__new__', label: '➕ New client' }].concat(
+                clients.map(function (c) { return { value: c.id, label: c.name }; })) }) +
+            '<div data-newclient class="hide">' +
+              UI.field({ label: 'New client name', name: 'newName', autocomplete: 'name', placeholder: 'e.g. Maria Borg' }) +
+              UI.field({ label: 'Mobile (optional)', name: 'newPhone', type: 'tel', inputmode: 'tel', autocomplete: 'tel' }) +
+            '</div>') +
         UI.field({ label: 'Service', name: 'service', type: 'select', options: svcOptions, value: svcOptions[0] && svcOptions[0].value }) +
         '<div class="row" style="gap:8px;align-items:flex-start">' +
           '<div class="grow">' + UI.field({ label: 'Date', name: 'date', type: 'date', value: presetDate || Store.todayISO(), required: true }) + '</div>' +
@@ -368,6 +373,18 @@
           svcSel.dispatchEvent(new Event('change'));
         }
 
+        // show the name/phone fields only when "New client" is chosen
+        var cliSel = el.querySelector('[name=clientId]');
+        var newBox = el.querySelector('[data-newclient]');
+        function toggleNew() {
+          if (!cliSel || !newBox) return;
+          var isNew = cliSel.value === '__new__';
+          newBox.classList.toggle('hide', !isNew);
+          var nn = el.querySelector('[name=newName]');
+          if (nn) nn.required = isNew;
+        }
+        if (cliSel) { cliSel.addEventListener('change', toggleNew); toggleNew(); }
+
         // live patch-test check as soon as client + date are known
         function checkPatch() {
           var f = UI.formData(el);
@@ -387,7 +404,18 @@
           e.preventDefault();
           UI.clearErrors(el);
           var f = UI.formData(el);
-          if (!f.clientId) return UI.fieldError(el, 'clientId', 'Choose a client.');
+
+          // "New client" chosen from the picker: create (or reuse a same-name) first
+          var clientId = f.clientId;
+          if (clientId === '__new__') {
+            var nm = (f.newName || '').trim();
+            if (!nm) return UI.fieldError(el, 'newName', 'Enter the new client\'s name.');
+            var dup = Store.clients().filter(function (x) { return (x.name || '').trim().toLowerCase() === nm.toLowerCase(); });
+            var created = dup.length ? dup[0] : Store.saveClient({ name: nm, phone: (f.newPhone || '').trim() });
+            if (!created) return UI.toast('Could not save the new client — storage may be full.', 'err');
+            clientId = created.id;
+          }
+          if (!clientId) return UI.fieldError(el, 'clientId', 'Choose a client.');
           if (!f.date) return UI.fieldError(el, 'date', 'Pick a date.');
 
           // clash check — same day, overlapping window
@@ -403,7 +431,7 @@
           }
 
           Store.saveAppointment({
-            clientId: f.clientId, date: f.date, time: f.time,
+            clientId: clientId, date: f.date, time: f.time,
             service: f.service, durationMin: f.durationMin, price: f.price,
             deposit: f.deposit, notes: (f.notes || '').trim(), status: 'booked'
           });
@@ -428,31 +456,46 @@
     var sel = App._calDate || Store.todayISO();
     var today = Store.todayISO();
 
-    // 14-day strip starting yesterday
-    var strip = '';
-    for (var i = -1; i < 13; i++) {
-      var d = Store.addDays(today, i);
-      var dt = new Date(d + 'T00:00:00');
-      var count = Store.appointments({ date: d, status: 'booked' }).length;
-      var on = d === sel;
-      strip += '<button type="button" data-action="cal-day" data-id="' + d + '" ' +
-        'aria-pressed="' + on + '" aria-label="' + UI.date(d, 'long') + ', ' + count + ' appointments" ' +
-        'style="flex:0 0 58px;min-height:72px;border-radius:14px;border:1px solid ' +
-        (on ? 'var(--primary)' : 'var(--border)') + ';background:' +
+    // full month grid, Monday-first (Malta convention)
+    var month = App._calMonth || sel.slice(0, 7);            // 'YYYY-MM'
+    var y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
+    var daysInMonth = new Date(y, m, 0).getDate();
+    var firstDow = (new Date(y, m - 1, 1).getDay() + 6) % 7; // Mon = 0 … Sun = 6
+    var monthLabel = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+    var b = '<div class="row-between" style="align-items:center;margin-bottom:12px">' +
+      '<button class="icon-btn" data-action="cal-month" data-id="prev" type="button" aria-label="Previous month">' + UI.icon('chev-left') + '</button>' +
+      '<strong style="font-size:1.0625rem">' + UI.esc(monthLabel) + '</strong>' +
+      '<button class="icon-btn" data-action="cal-month" data-id="next" type="button" aria-label="Next month">' + UI.icon('chev-right') + '</button>' +
+      '</div>';
+
+    b += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">' +
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (w) {
+        return '<span style="text-align:center;font-size:.625rem;font-weight:700;color:var(--muted);text-transform:uppercase">' + w + '</span>';
+      }).join('') + '</div>';
+
+    var cells = '';
+    for (var i = 0; i < firstDow; i++) cells += '<span></span>';
+    for (var dnum = 1; dnum <= daysInMonth; dnum++) {
+      var iso = month + '-' + (dnum < 10 ? '0' : '') + dnum;
+      var count = Store.appointments({ date: iso, status: 'booked' }).length;
+      var on = iso === sel, isToday = iso === today;
+      cells += '<button type="button" data-action="cal-day" data-id="' + iso + '" ' +
+        'aria-pressed="' + on + '" aria-label="' + UI.date(iso, 'long') + ', ' + count + ' appointments" ' +
+        'style="aspect-ratio:1;border-radius:12px;border:1px solid ' +
+        (on || isToday ? 'var(--primary)' : 'var(--border)') + ';background:' +
         (on ? 'var(--primary)' : 'var(--surface)') + ';color:' +
         (on ? 'var(--on-primary)' : 'var(--ink)') + ';display:flex;flex-direction:column;' +
-        'align-items:center;justify-content:center;gap:2px;cursor:pointer">' +
-        '<span style="font-size:.625rem;text-transform:uppercase;opacity:.75;font-weight:700">' +
-          dt.toLocaleDateString(undefined, { weekday: 'short' }) + '</span>' +
-        '<span class="num" style="font-size:1.125rem;font-weight:700">' + dt.getDate() + '</span>' +
-        (count ? '<span style="width:4px;height:4px;border-radius:50%;background:' +
-          (on ? 'var(--on-primary)' : 'var(--primary)') + '"></span>' : '<span style="height:4px"></span>') +
+        'align-items:center;justify-content:center;gap:3px;cursor:pointer;' +
+        (isToday && !on ? 'font-weight:800' : '') + '">' +
+        '<span class="num" style="font-size:1rem;font-weight:700">' + dnum + '</span>' +
+        (count ? '<span style="width:5px;height:5px;border-radius:50%;background:' +
+          (on ? 'var(--on-primary)' : 'var(--primary)') + '"></span>' : '<span style="height:5px"></span>') +
         '</button>';
     }
+    b += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px">' + cells + '</div>';
 
     var appts = Store.appointments({ date: sel });
-    var b = '<div class="row" style="gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:20px;' +
-      'scrollbar-width:none;-webkit-overflow-scrolling:touch">' + strip + '</div>';
 
     b += '<div class="section-head"><h2>' + UI.relDate(sel) + '</h2>' +
       '<span class="eyebrow">' + UI.date(sel) + '</span></div>';
@@ -489,8 +532,17 @@
     };
   };
 
-  App.actions['cal-day'] = function (d) { App._calDate = d; App.render(); };
+  App.actions['cal-day'] = function (d) { App._calDate = d; App._calMonth = d.slice(0, 7); App.render(); };
   App.actions['book-on'] = function (d) { App.bookSheet(null, d); };
+
+  App.actions['cal-month'] = function (dir) {
+    var base = App._calMonth || (App._calDate || Store.todayISO()).slice(0, 7);
+    var y = Number(base.slice(0, 4)), m = Number(base.slice(5, 7));
+    m += (dir === 'next' ? 1 : -1);
+    if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+    App._calMonth = y + '-' + (m < 10 ? '0' : '') + m;
+    App.render();
+  };
 
   App.actions['appt-menu'] = function (id) {
     var a = Store.appointment(id);

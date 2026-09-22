@@ -100,10 +100,25 @@
 <script src="js/settings.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function (e) {
-      console.warn('SW registration failed', e);
+  var swRefreshing = false;
+  // If a new service worker takes over an ALREADY-controlled page, reload once
+  // so she is never stuck on stale code (the "before/after still opens the
+  // camera" report was an old cached build). Guarded so first install (which
+  // also fires controllerchange) does not trigger a reload.
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
     });
+  }
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      reg.update();                                    // check for a newer build now
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) reg.update();            // and each time she reopens it
+      });
+    }).catch(function (e) { console.warn('SW registration failed', e); });
   });
 }
 </script>
