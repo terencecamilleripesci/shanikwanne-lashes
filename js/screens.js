@@ -340,9 +340,26 @@
    * already had. Offer both, explicitly.
    */
   function shoot(kind) {
+    var c = App._client;
+    var recs = Store.records(c.id);           // newest first
+    var lastId = recs.length ? recs[0].id : '';
+
+    // let her back-fill onto an older visit, not just the latest one
+    var sessionField = recs.length
+      ? UI.field({
+          label: 'Attach to session', name: 'sessionId', type: 'select', value: lastId,
+          options: recs.map(function (r) {
+            return { value: r.id, label: UI.date(r.date) + (r.isFill ? ' · Fill' : ' · Full set') +
+              (r.setType ? ' · ' + r.setType : '') };
+          }).concat([{ value: '', label: 'No session (unfiled)' }]),
+          help: 'Which visit are these from? Defaults to her most recent.'
+        })
+      : '';
+
     UI.sheet({
       title: (kind === 'before' ? 'Before' : 'After') + ' photo',
       body:
+        sessionField +
         '<div class="stack">' +
           '<button class="btn btn-primary btn-block" data-cam type="button">' +
             UI.icon('camera') + 'Take a photo</button>' +
@@ -350,20 +367,23 @@
             UI.icon('image') + 'Choose from gallery</button>' +
         '</div>',
       onMount: function (el, api) {
+        function chosenRecordId() {
+          var sel = el.querySelector('[name=sessionId]');
+          return sel ? (sel.value || null) : (lastId || null);
+        }
         // fire the picker inside the tap, THEN close the sheet — iOS only opens
         // a file input from a genuine user gesture.
-        el.querySelector('[data-cam]').addEventListener('click', function () { grabPhoto(kind, true); api.close(true); });
-        el.querySelector('[data-lib]').addEventListener('click', function () { grabPhoto(kind, false); api.close(true); });
+        el.querySelector('[data-cam]').addEventListener('click', function () { grabPhoto(kind, true, chosenRecordId()); api.close(true); });
+        el.querySelector('[data-lib]').addEventListener('click', function () { grabPhoto(kind, false, chosenRecordId()); api.close(true); });
       }
     });
   }
 
-  function grabPhoto(kind, camera) {
+  function grabPhoto(kind, camera, recordId) {
     var c = App._client;
-    var last = Store.lastRecord(c.id);
     Photos.capture({
       clientId: c.id,
-      recordId: last ? last.id : null,
+      recordId: recordId || null,
       kind: kind,
       camera: camera,
       multiple: true
