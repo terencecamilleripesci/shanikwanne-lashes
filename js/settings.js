@@ -438,10 +438,27 @@
       // desktop or if sharing is unavailable.
       return Photos.share(blob, name, 'Shanikwanne Lashes backup — save this to iCloud Drive').then(function (how) {
         if (how === 'cancelled') { UI.toast('Backup cancelled — not saved', 'err'); return; }
+
+        // Say WHAT was saved, not just that something was. A backup that
+        // silently lost every photo used to report plain success, and she would
+        // only have found out the day she needed to restore it.
+        var c = pack.counts || {};
+        var what = c.clients + ' clients · ' + c.records + ' sessions · ' + c.photos + ' photos';
+
+        if (pack.photosFailed) {
+          // Do NOT record lastBackupAt: this backup is incomplete, so the
+          // "you're overdue" nudge must keep nagging until a good one exists.
+          UI.toast('⚠️ Saved WITHOUT some photos (' + what + '). Your records are safe, '
+            + 'but photos are missing — free up space on the iPad and back up again.', 'err');
+          App.render();
+          return;
+        }
+
         Store.saveSettings({ lastBackupAt: new Date().toISOString() });
-        UI.toast(how === 'downloaded'
+        UI.toast((how === 'downloaded'
           ? 'Backup downloaded — move it somewhere safe'
-          : 'Backup saved — choose iCloud Drive to keep it in the cloud', 'ok');
+          : 'Backup saved — choose iCloud Drive to keep it in the cloud')
+          + ' (' + what + ')', 'ok');
         App.render();
       });
     }).catch(function (e) {

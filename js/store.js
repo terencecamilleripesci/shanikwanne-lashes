@@ -564,19 +564,33 @@
     /* --------------------------------------------------- backup / erase */
     /** Full backup INCLUDING photos (base64). This is her only safety net. */
     exportAll: function () {
+      // photosFailed exists because the old code swallowed a photo-store read
+      // error and returned []. The backup then completed with EVERY record and
+      // ZERO photos — and told her it had saved. Her before/after photos are
+      // the least replaceable thing in this app. We still return the rest (a
+      // partial backup beats none), but the caller MUST say so out loud.
+      var photosFailed = false;
       return tx('readonly').then(function (os) { return wrap(os.getAll()); })
-        .catch(function () { return []; })
+        .catch(function () { photosFailed = true; return []; })
         .then(function (photos) {
           return Promise.all((photos || []).map(function (p) {
             return blobToDataURL(p.blob).then(function (d) {
               return { id: p.id, clientId: p.clientId, recordId: p.recordId, kind: p.kind, takenAt: p.takenAt, data: d };
-            });
+            }).catch(function () { photosFailed = true; return null; });
           }));
         }).then(function (photos) {
+          photos = (photos || []).filter(Boolean);   // drop any that failed to encode
           return {
             app: 'shanikwanne-lashes', v: 1,
             exportedAt: new Date().toISOString(),
-            data: data, photos: photos
+            data: data, photos: photos,
+            photosFailed: photosFailed,
+            counts: {
+              clients: (data.clients || []).length,
+              appointments: (data.appointments || []).length,
+              records: (data.records || []).length,
+              photos: photos.length
+            }
           };
         });
     },
